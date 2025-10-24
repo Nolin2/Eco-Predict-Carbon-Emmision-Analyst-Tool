@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Carbon Emission Analyst Tool</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load D3.js for Data Visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Load PayPal JavaScript SDK (using your provided Client ID) -->
+    <!-- CRITICAL: REPLACE 'ASjMz2ZN1L-PtTcEuW06tiSbnI2ycgyeev92rWXL0O-RAfbT-QNc6gGRO1KDLIwkzqqgwI4M1YI5QCOv' with your actual PayPal client ID -->
+    <script src="https://www.paypal.com/sdk/js?client-id=ASjMz2ZN1L-PtTcEuW06tiSbnI2ycgyeev92rWXL0O-RAfbT-QNc6gGRO1KDLIwkzqqgwI4M1YI5QCOv&vault=true&intent=subscription" data-sdk-integration-source="button-factory"></script>
+
+    <style>
+        /* Custom font and basic styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f6f8;
+        }
+        .data-card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        /* Custom styles for professional charts */
+        .chart-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            background-color: white;
+            transition: all 0.3s ease;
+        }
+        .chart-container:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        /* Hide the default number spinner arrows */
+        input[type='number']::-webkit-inner-spin-button,
+        input[type='number']::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="min-h-screen">
+    <!-- Header/Navigation Bar -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                <svg class="w-8 h-8 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <span class="hidden sm:inline">Eco</span>Predict AI
+            </h1>
+            <div class="flex items-center space-x-4">
+                <button id="upgrade-button" onclick="window.openUpgradeModal()" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold py-2 px-4 rounded-lg transition duration-300 transform hover:scale-105 hidden">
+                    Upgrade to Pro
+                </button>
+                <div class="text-right">
+                    <p class="text-sm font-semibold text-gray-700">User: <span id="user-display-name">Guest</span></p>
+                    <p class="text-xs text-green-600 font-medium"><span id="tier-status">Loading...</span></p>
+                </div>
+                <!-- Dynamic Auth/Upgrade Button -->
+                <button id="auth-button" onclick="window.openAuthModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 transform hover:scale-105">
+                    Sign In / Up
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container mx-auto px-4 py-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-6">Carbon Footprint Analysis Dashboard</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Input & Control Panel (lg:col-span-1) -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl data-card h-fit sticky top-8">
+                <h3 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">Operational Data Input</h3>
+
+                <!-- Data Input Toggle -->
+                <div class="flex mb-4 text-sm font-medium">
+                    <button id="toggle-manual" onclick="window.setMode('manual')" class="w-1/2 py-2 rounded-l-lg transition duration-200 border border-r-0 border-green-600 text-white bg-green-600">Manual Input</button>
+                    <button id="toggle-upload" onclick="window.setMode('upload')" class="w-1/2 py-2 rounded-r-lg transition duration-200 border border-green-600 text-green-600 bg-white hover:bg-green-50">Data Upload</button>
+                </div>
+
+                <!-- Manual Input Fields -->
+                <div id="manual-input-section" class="space-y-4">
+                    <!-- Input 1: Electricity -->
+                    <label class="block">
+                        <span class="text-sm font-medium text-gray-700 flex justify-between items-center">
+                            Electricity Usage (kWh/year)
+                            <span class="text-xs text-gray-500">Scope 2</span>
+                        </span>
+                        <input type="number" id="input-electricity" value="500000" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition" placeholder="e.g., 500000">
+                    </label>
+
+                    <!-- Input 2: Business Travel -->
+                    <label class="block">
+                        <span class="text-sm font-medium text-gray-700 flex justify-between items-center">
+                            Air Travel (km/year)
+                            <span class="text-xs text-gray-500">Scope 3</span>
+                        </span>
+                        <input type="number" id="input-travel" value="200000" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition" placeholder="e.g., 200000">
+                    </label>
+
+                    <!-- Input 3: Water -->
+                    <label class="block">
+                        <span class="text-sm font-medium text-gray-700 flex justify-between items-center">
+                            Water Consumption (m³/year)
+                            <span class="text-xs text-gray-500">Scope 3</span>
+                        </span>
+                        <input type="number" id="input-water" value="1500" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition" placeholder="e.g., 1500">
+                    </label>
+
+                    <!-- Input 4: Waste -->
+                    <label class="block">
+                        <span class="text-sm font-medium text-gray-700 flex justify-between items-center">
+                            General Waste (kg/year)
+                            <span class="text-xs text-gray-500">Scope 3</span>
+                        </span>
+                        <input type="number" id="input-waste" value="10000" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition" placeholder="e.g., 10000">
+                    </label>
+                </div>
+
+                <!-- Data Upload Section (Initially Hidden) -->
+                <div id="upload-input-section" class="hidden space-y-4">
+                    <label class="block">
+                        <span class="text-sm font-medium text-gray-700">Upload CSV or JSON File</span>
+                        <input type="file" id="data-file-input" accept=".csv,.json" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                    </label>
+                    <p class="text-xs text-gray-500 border-t pt-2">
+                        <span class="font-bold text-red-500">NOTE:</span> We currently support client-side parsing of CSV/JSON files containing the four required metrics (electricity, travel, water, waste).
+                    </p>
+                    <p id="upload-status" class="text-sm font-medium text-gray-600 h-6"></p>
+                </div>
+
+                <button id="run-analysis-btn" onclick="window.runAnalysis()" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-[1.02] disabled:bg-green-400">
+                    <span id="btn-text">Run AI Analysis & Prediction</span>
+                    <span id="btn-loader" class="hidden animate-spin h-5 w-5 border-t-2 border-r-2 border-white rounded-full mx-auto"></span>
+                </button>
+
+                <p id="auth-warning" class="mt-4 text-xs text-red-500 text-center font-bold hidden">
+                    Please Sign In or Sign Up to run the analysis.
+                </p>
+                <p id="limit-warning" class="mt-4 text-xs text-orange-500 text-center font-bold hidden">
+                    Free Tier Limit Reached. <button onclick="window.openUpgradeModal()" class="text-indigo-600 hover:text-indigo-800 underline">Upgrade to Pro</button> for unlimited analysis.
+                </p>
+                <p class="mt-4 text-xs text-gray-500 text-center">
+                    The free tier offers basic analysis. Upgrade to unlock full data analyst features.
+                </p>
+            </div>
+
+            <!-- Output Dashboard (lg:col-span-2) -->
+            <div class="lg:col-span-2">
+                <div id="output-dashboard" class="space-y-8 hidden">
+                    <!-- Main Score/Prediction -->
+                    <div class="bg-indigo-600 text-white p-8 rounded-xl data-card">
+                        <p class="text-xl font-medium opacity-80">Predicted Annual CO2e Footprint</p>
+                        <p id="total-co2e" class="text-6xl font-extrabold mt-1">--</p>
+                        <p class="text-lg font-light opacity-90 mt-2">Metric Tons (tCO2e)</p>
+                    </div>
+
+                    <!-- Problem Explanation and AI Analysis -->
+                    <div class="bg-white p-6 rounded-xl data-card">
+                        <h3 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                            AI Carbon Hotspot Analysis
+                        </h3>
+                        <p id="ai-analysis" class="text-gray-600 leading-relaxed"></p>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Chart 1: Contribution Breakdown (Pie Chart) -->
+                        <div class="chart-container">
+                            <h4 class="text-lg font-semibold text-gray-700 mb-4">Emissions Breakdown by Category</h4>
+                            <div id="pie-chart" class="w-full h-64"></div>
+                        </div>
+
+                        <!-- Chart 2: Reduction Focus (Bar Chart) -->
+                        <div class="chart-container">
+                            <h4 class="text-lg font-semibold text-gray-700 mb-4">Emission Magnitude (tCO2e)</h4>
+                            <div id="bar-chart" class="w-full h-64"></div>
+                        </div>
+                    </div>
+
+                    <!-- Solutions and Action Plan -->
+                    <div class="bg-white p-6 rounded-xl data-card">
+                        <h3 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-teal-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg>
+                            Actionable Solutions
+                        </h3>
+                        <ul id="ai-solutions" class="space-y-3 list-disc pl-5">
+                            <li class="text-gray-600">Solutions will appear here after analysis.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Initial Empty State / Welcome Message -->
+                <div id="initial-state" class="bg-white p-12 rounded-xl data-card text-center">
+                    <svg class="mx-auto w-16 h-16 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">Welcome to EcoPredict AI</h3>
+                    <p class="text-gray-600 mb-4">Input your operational data (or upload a file) and click "Run AI Analysis & Prediction" to instantly generate a professional carbon report. Please <span class="font-semibold text-indigo-500">Sign Up</span> to get started.</p>
+                    <p class="text-sm text-indigo-500 font-medium">This tool functions as your dedicated, always-on sustainability data analyst.</p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Auth Modal (Sign In / Sign Up) -->
+    <div id="auth-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl max-w-sm w-full data-card relative">
+            <button onclick="window.closeAuthModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 id="auth-title" class="text-3xl font-bold text-gray-800 mb-6 text-center">Company Sign Up</h3>
+
+            <div class="space-y-4">
+                <!-- Company Name (Sign Up Only) -->
+                <label id="company-name-label" class="block">
+                    <span class="text-sm font-medium text-gray-700">Company Name</span>
+                    <input type="text" id="auth-company-name" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition" placeholder="e.g., GreenFuture Bank">
+                </label>
+
+                <!-- Email -->
+                <label class="block">
+                    <span class="text-sm font-medium text-gray-700">Email</span>
+                    <input type="email" id="auth-email" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition" placeholder="you@company.com">
+                </label>
+
+                <!-- Password -->
+                <label class="block">
+                    <span class="text-sm font-medium text-gray-700">Password</span>
+                    <input type="password" id="auth-password" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition" placeholder="Minimum 6 characters">
+                </label>
+
+                <p id="auth-error-message" class="text-sm text-red-500 hidden"></p>
+
+                <button id="auth-action-btn" onclick="window.handleAuthAction()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-[1.02]">
+                    Sign Up
+                </button>
+            </div>
+
+            <div class="mt-6 text-center text-sm">
+                <button id="toggle-auth-mode" onclick="window.toggleAuthMode()" class="text-indigo-600 hover:text-indigo-800 font-semibold transition duration-200">
+                    Already have an account? Sign In
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Upgrade Modal (Subscription) -->
+    <div id="upgrade-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl max-w-md w-full data-card relative text-center">
+            <!-- FIX: Ensure closeUpgradeModal is globally accessible -->
+            <button onclick="window.closeUpgradeModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 class="text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center">
+                <svg class="w-7 h-7 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm0 2a3 3 0 013 3v2H7V7a3 3 0 013-3zm-3 8a1 1 0 000 2h6a1 1 0 100-2H7z"></path></svg>
+                Go Pro for Unlimited Analysis
+            </h3>
+            <p class="text-gray-600 mb-6">Unlock unlimited AI analysis runs, priority support, and advanced reporting features.</p>
+            
+            <div class="bg-indigo-50 p-6 rounded-lg mb-6">
+                <p class="text-4xl font-extrabold text-indigo-700">$130<span class="text-xl font-medium text-gray-500">/month</span></p>
+                <p class="text-sm text-indigo-600 mt-2">Billed monthly. Cancel anytime.</p>
+            </div>
+            
+            <p id="paypal-status" class="text-sm text-gray-500 mb-4 h-6"></p>
+            
+            <!-- PayPal Button Container -->
+            <div id="paypal-button-container" class="w-full">
+                <!-- PayPal button will render here -->
+            </div>
+            
+            <p class="mt-6 text-xs text-gray-500">By subscribing, you agree to our terms of service.</p>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // --- FIREBASE SETUP ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, setLogLevel, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    setLogLevel('Debug');
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    let db, auth;
+    let currentAuthMode = 'signup'; // 'signup' or 'signin'
+    let isAuthenticated = false;
+    let currentUserId = null;
+    let currentTier = 'loading';
+
+    /**
+     * !!! CRITICAL !!!
+     * * REPLACE THIS MOCK URL WITH THE REAL HTTPS ENDPOINT OF YOUR DEPLOYED 
+     * 'runAnalysis_function.js' GOOGLE CLOUD FUNCTION.
+     */
+    const CLOUD_FUNCTION_URL = 'YOUR_GCF_ANALYSIS_ENDPOINT_HERE'; 
+
+
+    // Initialization and Initial Auth
+    try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            signInWithCustomToken(auth, __initial_auth_token).catch(e => console.error("Custom token sign-in failed:", e));
+        } else {
+            signInAnonymously(auth).catch(e => console.error("Anonymous sign-in failed:", e));
+        }
+    } catch (e) {
+        console.error("Firebase initialization failed:", e);
+    }
+    
+    // Auth State Listener
+    onAuthStateChanged(auth, (user) => {
+        const displayNameElement = document.getElementById('user-display-name');
+        const authButton = document.getElementById('auth-button');
+        const authWarning = document.getElementById('auth-warning');
+        const upgradeButton = document.getElementById('upgrade-button');
+        
+        if (user && user.uid) {
+            isAuthenticated = true;
+            currentUserId = user.uid;
+            window.closeAuthModal();
+            
+            displayNameElement.textContent = user.displayName || user.email || 'User'; 
+            authButton.textContent = 'Sign Out';
+            authButton.onclick = window.handleSignOut;
+            authWarning.classList.add('hidden');
+            upgradeButton.classList.remove('hidden');
+
+            // Start listening to the subscription status
+            setupSubscriptionListener(user.uid);
+            
+            // Render PayPal button if modal is open
+            if (!document.getElementById('upgrade-modal').classList.contains('hidden')) {
+                renderPayPalButton();
+            }
+
+        } else {
+            isAuthenticated = false;
+            currentUserId = null;
+            currentTier = 'guest';
+            displayNameElement.textContent = 'Guest';
+            document.getElementById('tier-status').textContent = 'Please Sign In';
+            authButton.textContent = 'Sign In / Up';
+            authButton.onclick = window.openAuthModal;
+            authWarning.classList.remove('hidden');
+            upgradeButton.classList.add('hidden');
+        }
+    });
+
+    // --- FIRESTORE SUBSCRIPTION LISTENER ---
+    function setupSubscriptionListener(uid) {
+        const tierStatusElement = document.getElementById('tier-status');
+        const userSubscriptionRef = doc(db, `/artifacts/${appId}/users/${uid}/subscriptions/status`);
+
+        onSnapshot(userSubscriptionRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                currentTier = data.tier || 'free';
+                tierStatusElement.textContent = currentTier === 'pro' ? 'Pro Unlimited Tier' : 'Free Monthly Tier';
+                tierStatusElement.classList.toggle('text-yellow-600', currentTier === 'pro');
+                tierStatusElement.classList.toggle('text-green-600', currentTier === 'free');
+                
+                // Hide upgrade button if already Pro
+                document.getElementById('upgrade-button').classList.toggle('hidden', currentTier === 'pro');
+
+            } else {
+                // Default to free if no document exists
+                currentTier = 'free';
+                tierStatusElement.textContent = 'Free Monthly Tier';
+                document.getElementById('upgrade-button').classList.remove('hidden');
+            }
+        }, (error) => {
+            console.error("Error reading subscription status:", error);
+            tierStatusElement.textContent = 'Status Error';
+        });
+    }
+
+    // --- AUTH MODAL FUNCTIONS (FIXED) ---
+
+    window.openAuthModal = () => {
+        document.getElementById('auth-modal').classList.remove('hidden');
+        window.setAuthMode('signup'); // Default to Sign Up
+    };
+
+    // Fix: Make globally accessible via window
+    window.closeAuthModal = function() {
+        document.getElementById('auth-modal').classList.add('hidden');
+        document.getElementById('auth-error-message').classList.add('hidden');
+    }
+
+    window.toggleAuthMode = () => {
+        window.setAuthMode(currentAuthMode === 'signup' ? 'signin' : 'signup');
+    };
+
+    window.setAuthMode = (mode) => {
+        currentAuthMode = mode;
+        const title = document.getElementById('auth-title');
+        const actionBtn = document.getElementById('auth-action-btn');
+        const toggleBtn = document.getElementById('toggle-auth-mode');
+        const companyNameLabel = document.getElementById('company-name-label');
+        const errorMsg = document.getElementById('auth-error-message');
+        
+        errorMsg.classList.add('hidden');
+
+        if (mode === 'signup') {
+            title.textContent = 'Company Sign Up';
+            actionBtn.textContent = 'Sign Up';
+            toggleBtn.textContent = 'Already have an account? Sign In';
+            companyNameLabel.classList.remove('hidden');
+        } else {
+            title.textContent = 'Company Sign In';
+            actionBtn.textContent = 'Sign In';
+            toggleBtn.textContent = 'Need an account? Sign Up';
+            companyNameLabel.classList.add('hidden');
+        }
+    }
+
+    window.handleAuthAction = async () => {
+        const name = document.getElementById('auth-company-name').value;
+        const email = document.getElementById('auth-email').value;
+        const password = document.getElementById('auth-password').value;
+        const errorMsg = document.getElementById('auth-error-message');
+        errorMsg.classList.add('hidden');
+        
+        try {
+            if (currentAuthMode === 'signup') {
+                if (!name) throw new Error("Please enter your Company Name.");
+                if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: name }); 
+                
+            } else { // signin
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+            // onAuthStateChanged listener handles UI update and modal close
+
+        } catch (error) {
+            console.error("Authentication Error:", error);
+            let message = "An unknown error occurred.";
+            if (error.code) {
+                switch (error.code) {
+                    case 'auth/email-already-in-use': message = 'This email is already in use.'; break;
+                    case 'auth/invalid-email': message = 'Invalid email address format.'; break;
+                    case 'auth/weak-password': message = 'Password must be at least 6 characters.'; break;
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password': message = 'Invalid login credentials.'; break;
+                    default: message = error.message;
+                }
+            } else {
+                message = error.message;
+            }
+            errorMsg.textContent = message;
+            errorMsg.classList.remove('hidden');
+        }
+    };
+
+    window.handleSignOut = async () => {
+        try {
+            await signOut(auth);
+            // onAuthStateChanged listener handles UI update
+        } catch (error) {
+            console.error("Sign Out Error:", error);
+        }
+    };
+
+    // --- UPGRADE MODAL & PAYPAL (FIXED) ---
+    let isPayPalRendered = false; // Note: For complex scenarios, better to clear the container
+
+    window.openUpgradeModal = () => {
+        if (!isAuthenticated) {
+            return window.openAuthModal();
+        }
+        document.getElementById('upgrade-modal').classList.remove('hidden');
+        document.getElementById('paypal-status').textContent = 'Please choose a payment option.';
+        renderPayPalButton();
+    };
+
+    // Fix: Make globally accessible via window
+    window.closeUpgradeModal = function() {
+        document.getElementById('upgrade-modal').classList.add('hidden');
+    }
+
+    function renderPayPalButton() {
+        if (!currentUserId) return;
+        
+        const container = document.getElementById('paypal-button-container');
+
+        // Clear container if buttons were previously rendered to avoid duplicate
+        if (container.hasChildNodes()) {
+            container.innerHTML = '';
+        }
+        
+        // Ensure PayPal SDK is loaded before trying to access it
+        if (typeof paypal === 'undefined' || !paypal.Buttons) {
+            document.getElementById('paypal-status').textContent = 'Error: PayPal SDK failed to load.';
+            return;
+        }
+
+        paypal.Buttons({
+            // Set up the transaction
+            createSubscription: function(data, actions) {
+                // IMPORTANT: The 'plan_id' below is a mock ID. 
+                // !!! YOU MUST REPLACE THIS WITH YOUR ACTUAL PAYPAL PLAN ID !!!
+                const mockPlanId = "P-1234567890ABCDEF1234567890ABCD"; 
+                console.log("Attempting to create subscription with mock plan ID:", mockPlanId);
+                
+                return actions.subscription.create({
+                    plan_id: mockPlanId,
+                    custom_id: currentUserId, // CRITICAL: Pass Firebase UID to the webhook
+                    auto_renewal: true
+                });
+            },
+
+            // Finalize the transaction
+            onApprove: function(data, actions) {
+                document.getElementById('paypal-status').textContent = 'Payment successful! Updating your Pro status via webhook...';
+                setTimeout(() => {
+                    // Give webhook time to run, then close and prompt refresh
+                    window.closeUpgradeModal();
+                    // NOTE: Using a custom message box instead of alert()
+                    const message = "Subscription processing is underway. Your status will update shortly!";
+                    console.log("Payment Info:", message); // Log instead of alert
+                }, 3000);
+            },
+            
+            // Handle errors
+            onError: function(err) {
+                console.error('PayPal Checkout Error', err);
+                document.getElementById('paypal-status').textContent = 'Payment failed. Please try again or check console for details.';
+            }
+
+        }).render(container);
+    }
+
+
+    // --- DATA INPUT / UPLOAD LOGIC ---
+
+    // Initial Mode Set
+    window.addEventListener('load', () => window.setMode('manual'));
+
+    window.setMode = (mode) => {
+        const manualSection = document.getElementById('manual-input-section');
+        const uploadSection = document.getElementById('upload-input-section');
+        const toggleManual = document.getElementById('toggle-manual');
+        const toggleUpload = document.getElementById('toggle-upload');
+
+        if (mode === 'manual') {
+            manualSection.classList.remove('hidden');
+            uploadSection.classList.add('hidden');
+            toggleManual.classList.remove('bg-white', 'text-green-600', 'hover:bg-green-50');
+            toggleManual.classList.add('bg-green-600', 'text-white');
+            toggleUpload.classList.remove('bg-green-600', 'text-white');
+            toggleUpload.classList.add('bg-white', 'text-green-600', 'hover:bg-green-50');
+        } else {
+            manualSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+            toggleUpload.classList.remove('bg-white', 'text-green-600', 'hover:bg-green-50');
+            toggleUpload.classList.add('bg-green-600', 'text-white');
+            toggleManual.classList.remove('bg-green-600', 'text-white');
+            toggleManual.classList.add('bg-white', 'text-green-600', 'hover:bg-green-50');
+        }
+    };
+    
+    document.getElementById('data-file-input').addEventListener('change', handleFileUpload);
+
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        const statusElement = document.getElementById('upload-status');
+        if (!file) {
+            statusElement.textContent = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const content = e.target.result;
+                let data = null;
+
+                if (file.name.endsWith('.json')) {
+                    data = JSON.parse(content);
+                } else if (file.name.endsWith('.csv')) {
+                    data = parseCSV(content);
+                } else {
+                    throw new Error("Unsupported file type. Please use CSV or JSON.");
+                }
+
+                populateFormFields(data);
+                statusElement.textContent = `File loaded successfully! Fields populated.`;
+                statusElement.classList.remove('text-red-500');
+                statusElement.classList.add('text-green-600');
+                
+            } catch (error) {
+                console.error("File processing error:", error);
+                statusElement.textContent = `Error processing file: ${error.message}`;
+                statusElement.classList.remove('text-green-600');
+                statusElement.classList.add('text-red-500');
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    function parseCSV(content) {
+        const lines = content.trim().split('\n');
+        if (lines.length < 2) throw new Error("CSV file requires at least a header and one data row.");
+        
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const values = lines[1].split(',').map(v => v.trim());
+
+        const data = {};
+        for(let i = 0; i < headers.length && i < values.length; i++) {
+            if (headers[i].includes('electricity')) data.electricity = values[i];
+            if (headers[i].includes('travel') || headers[i].includes('air')) data.travel = values[i];
+            if (headers[i].includes('water')) data.water = values[i];
+            if (headers[i].includes('waste')) data.waste = values[i];
+        }
+        return data;
+    }
+
+    function populateFormFields(data) {
+        const fields = {
+            electricity: 'input-electricity',
+            travel: 'input-travel',
+            water: 'input-water',
+            waste: 'input-waste'
+        };
+
+        let updatedCount = 0;
+        for (const key in fields) {
+            if (data[key] !== undefined && !isNaN(parseFloat(data[key]))) {
+                document.getElementById(fields[key]).value = parseFloat(data[key]);
+                updatedCount++;
+            }
+        }
+        if (updatedCount === 0) {
+             throw new Error("Could not find required metrics (electricity, travel, water, waste) in the file.");
+        }
+    }
+
+    // --- AI ANALYSIS & CHARTING ---
+
+    function parseAIResponse(responseText) {
+        // The GCF returns the full candidate object, which contains the JSON string in its text part.
+        // We need to parse that JSON string.
+        let parsedData;
+        try {
+            // Check if the text response is already a clean JSON string
+            parsedData = JSON.parse(responseText);
+        } catch(e) {
+             // If not, try to extract the JSON from a markdown block (as Gemini often does)
+            const jsonMatch = responseText.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+            if (!jsonMatch || !jsonMatch[1]) {
+                throw new Error("Could not find the required JSON structure in the AI response.");
+            }
+            try {
+                parsedData = JSON.parse(jsonMatch[1]);
+            } catch (e) {
+                console.error("Failed to parse extracted JSON:", jsonMatch[1], e);
+                throw new Error("The AI returned valid text but the extracted JSON structure was invalid.");
+            }
+        }
+        
+        return {
+            analysisData: parsedData
+        };
+    }
+
+
+    function renderCharts(data) {
+        // Clear existing charts
+        d3.select("#pie-chart").html('');
+        d3.select("#bar-chart").html('');
+
+        const breakdown = data.breakdown;
+        const total = data.totalCO2e;
+
+        // PIE CHART
+        const pieWidth = 300, pieHeight = 300;
+        const radius = Math.min(pieWidth, pieHeight) / 2;
+        
+        const pieSvg = d3.select("#pie-chart")
+            .append("svg")
+            .attr("viewBox", `0 0 ${pieWidth} ${pieHeight}`)
+            .attr("preserveAspectRatio", "xMinYMin meet")
+            .append("g")
+            .attr("transform", `translate(${pieWidth / 2}, ${pieHeight / 2})`);
+
+        const colorScale = d3.scaleOrdinal()
+            .domain(breakdown.map(d => d.category))
+            .range(breakdown.map(d => d.color));
+
+        const pie = d3.pie().value(d => d.co2e);
+        const arc = d3.arc().innerRadius(0).outerRadius(radius);
+        const outerArc = d3.arc().innerRadius(radius * 0.9).outerRadius(radius * 0.9);
+
+        const arcs = pieSvg.selectAll("arc")
+            .data(pie(breakdown))
+            .enter()
+            .append("g")
+            .attr("class", "arc");
+
+        arcs.append("path")
+            .attr("d", arc)
+            .attr("fill", d => colorScale(d.data.category))
+            .attr("stroke", "white")
+            .style("stroke-width", "2px")
+            .transition()
+            .duration(1000)
+            .attrTween("d", function(d) {
+                const i = d3.interpolate(d.startAngle, d.endAngle);
+                return function(t) {
+                    d.endAngle = i(t);
+                    return arc(d);
+                }
+            });
+
+        arcs.append("text")
+            .attr("transform", function(d) {
+                const pos = outerArc.centroid(d);
+                return `translate(${pos})`;
+            })
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .attr("font-weight", "600")
+            .style("opacity", 0)
+            .text(d => `${d.data.category} (${((d.data.co2e / total) * 100).toFixed(1)}%)`)
+            .transition()
+            .delay(1000)
+            .duration(500)
+            .style("opacity", 1);
+
+
+        // BAR CHART
+        const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+        const barDiv = d3.select("#bar-chart").node().getBoundingClientRect();
+        const barWidth = barDiv.width;
+        const barHeight = barDiv.height;
+
+        const barSvg = d3.select("#bar-chart")
+            .append("svg")
+            .attr("viewBox", `0 0 ${barWidth} ${barHeight}`)
+            .attr("preserveAspectRatio", "xMinYMin meet")
+            .append("g")
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const innerWidth = barWidth - margin.left - margin.right;
+        const innerHeight = barHeight - margin.top - margin.bottom;
+
+        const x = d3.scaleBand()
+            .domain(breakdown.map(d => d.category))
+            .range([0, innerWidth])
+            .padding(0.3);
+
+        const y = d3.scaleLinear()
+            .domain([0, d3.max(breakdown, d => d.co2e) * 1.1])
+            .range([innerHeight, 0]);
+
+        barSvg.append("g")
+            .attr("transform", `translate(0,${innerHeight})`)
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .style("text-anchor", "middle");
+        
+        barSvg.append("g")
+            .call(d3.axisLeft(y).ticks(5).tickFormat(d => d / 1000 + 'k'));
+
+        barSvg.selectAll("bar")
+            .data(breakdown)
+            .enter().append("rect")
+            .attr("x", d => x(d.category))
+            .attr("y", innerHeight)
+            .attr("width", x.bandwidth())
+            .attr("fill", d => d.color)
+            .attr("rx", 4)
+            .attr("height", 0)
+            .transition()
+            .duration(800)
+            .delay((d, i) => i * 150)
+            .attr("y", d => y(d.co2e))
+            .attr("height", d => innerHeight - y(d.co2e));
+
+        barSvg.selectAll(".bar-label")
+            .data(breakdown)
+            .enter().append("text")
+            .attr("class", "bar-label")
+            .attr("x", d => x(d.category) + x.bandwidth() / 2)
+            .attr("y", d => y(d.co2e) - 5)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .attr("font-weight", "bold")
+            .style("opacity", 0)
+            .text(d => `${(d.co2e / 1000).toFixed(1)}k`)
+            .transition()
+            .delay((d, i) => 800 + i * 150)
+            .duration(300)
+            .style("opacity", 1);
+    }
+
+    window.runAnalysis = async function() {
+        document.getElementById('limit-warning').classList.add('hidden'); // Clear previous warning
+        if (!isAuthenticated) {
+            document.getElementById('auth-warning').classList.remove('hidden');
+            return;
+        }
+
+        const btn = document.getElementById('run-analysis-btn');
+        const btnText = document.getElementById('btn-text');
+        const btnLoader = document.getElementById('btn-loader');
+        const dashboard = document.getElementById('output-dashboard');
+        const initialState = document.getElementById('initial-state');
+
+        // Check if the placeholder URL is still set
+        if (CLOUD_FUNCTION_URL === 'YOUR_GCF_ANALYSIS_ENDPOINT_HERE') {
+            document.getElementById('total-co2e').textContent = 'Setup Required';
+            document.getElementById('ai-analysis').textContent = 'CRITICAL ERROR: Please replace the placeholder CLOUD_FUNCTION_URL in the script block with the HTTPS endpoint of your deployed Google Cloud Function (runAnalysis_function.js) to enable secure analysis.';
+            document.getElementById('ai-solutions').innerHTML = '<li class="text-red-500">Update CLOUD_FUNCTION_URL in the source code.</li>';
+            initialState.classList.add('hidden');
+            dashboard.classList.remove('hidden');
+            return;
+        }
+
+
+        // 1. Collect Input Data
+        const inputData = {
+            electricity: document.getElementById('input-electricity').value,
+            travel: document.getElementById('input-travel').value,
+            water: document.getElementById('input-water').value,
+            waste: document.getElementById('input-waste').value,
+        };
+
+        if (Object.values(inputData).some(val => !val || isNaN(val) || Number(val) < 0)) {
+            document.getElementById('total-co2e').textContent = 'Input Error';
+            document.getElementById('ai-analysis').textContent = 'Please ensure all four operational data fields contain valid, positive numbers before running the analysis.';
+            document.getElementById('ai-solutions').innerHTML = '<li class="text-red-500">Validation Failed</li>';
+            initialState.classList.add('hidden');
+            dashboard.classList.remove('hidden');
+            return;
+        }
+
+        // 2. UI Loading State
+        btn.disabled = true;
+        btnText.classList.add('hidden');
+        btnLoader.classList.remove('hidden');
+        initialState.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+        document.getElementById('total-co2e').textContent = 'Analyzing...';
+        document.getElementById('ai-analysis').textContent = 'The AI Analyst is securely processing the data on the backend and generating your report...';
+        document.getElementById('ai-solutions').innerHTML = '<li class="text-gray-600">Generating data-driven solutions...</li>';
+        d3.select("#pie-chart").html('<p class="text-center text-gray-400 mt-12">Generating Chart...</p>');
+        d3.select("#bar-chart").html('<p class="text-center text-gray-400 mt-12">Generating Chart...</p>');
+        
+        try {
+            // Get the current user's ID token for authentication
+            const idToken = await auth.currentUser.getIdToken(); 
+
+            // 3. SECURELY CALL THE CLOUD FUNCTION
+            const response = await fetch(CLOUD_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}` 
+                },
+                body: JSON.stringify({ inputData: inputData })
+            });
+
+            const result = await response.json();
+
+            if (response.status === 403) {
+                // Handle Subscription/Limit Errors from the Cloud Function
+                document.getElementById('total-co2e').textContent = 'Limit Reached';
+                document.getElementById('ai-analysis').textContent = result.message || 'You are blocked from running this analysis. Please upgrade your account.';
+                document.getElementById('ai-solutions').innerHTML = `<li class="text-red-500">${result.message || 'Access Denied'}</li>`;
+                document.getElementById('limit-warning').classList.remove('hidden');
+                return;
+            } else if (!response.ok) {
+                 throw new Error(result.error || `HTTP Error: ${response.status}`);
+            }
+
+            // 4. Parse the AI Response Text
+            const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!responseText) throw new Error("Backend did not return valid AI content.");
+
+            // The backend is designed to return the raw AI response object
+            const { analysisData } = parseAIResponse(responseText);
+            
+            // 5. Update UI with Results
+            document.getElementById('total-co2e').textContent = analysisData.totalCO2e.toLocaleString();
+            document.getElementById('ai-analysis').textContent = analysisData.analysis;
+            
+            const solutionsList = document.getElementById('ai-solutions');
+            solutionsList.innerHTML = analysisData.solutions.map(sol => 
+                `<li class="text-gray-700 font-medium leading-relaxed">${sol}</li>`
+            ).join('');
+
+            // 6. Render Charts
+            renderCharts(analysisData);
+
+        } catch (error) {
+            console.error("Analysis failed:", error);
+            document.getElementById('total-co2e').textContent = 'Server Error';
+            document.getElementById('ai-analysis').textContent = `A server error occurred during analysis: ${error.message}. Please check your deployed Cloud Function or network connection.`;
+            document.getElementById('ai-solutions').innerHTML = '<li class="text-red-500">Analysis failed to complete.</li>';
+            d3.select("#pie-chart").html('<p class="text-center text-red-500 mt-12">Chart Data Error</p>');
+            d3.select("#bar-chart").html('<p class="text-center text-red-500 mt-12">Chart Data Error</p>');
+        } finally {
+            // 7. Reset UI State
+            btn.disabled = false;
+            btnText.classList.remove('hidden');
+            btnLoader.classList.add('hidden');
+        }
+    };
+    
+    // Initial content setup for the D3 charts to ensure they are responsive
+    window.addEventListener('load', () => {
+        if (isAuthenticated) {
+            // Check auth state on load to run listener
+        } else {
+            document.getElementById('tier-status').textContent = 'Please Sign In';
+        }
+    });
+
+</script>
+</body>
+</html>
