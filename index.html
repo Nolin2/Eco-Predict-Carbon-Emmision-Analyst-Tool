@@ -287,8 +287,14 @@
     import { getFirestore, setLogLevel, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     setLogLevel('Debug');
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQF5SGKAUct2wn9Wpn80NVOKN3L9wqQAk",
+      authDomain: "eco-predict-ai.firebaseapp.com",
+      projectId: "eco-predict-ai",
+      storageBucket: "eco-predict-ai.appspot.com",
+      messagingSenderId: "108835312103",
+      appId: "1:108835312103:web:c96d8cbdae970604c3ed42"
+      };
 
     let db, auth;
     let currentAuthMode = 'signup'; // 'signup' or 'signin'
